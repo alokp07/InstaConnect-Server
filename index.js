@@ -14,7 +14,7 @@ const server = http.createServer(instaServer)
 
 const io = new Server(server,{
     cors:{
-        origin:"http://localhost:3000",
+        origin:"https://insta-connect-kappa.vercel.app/",
         methods:["GET","POST"],
     },
 })
