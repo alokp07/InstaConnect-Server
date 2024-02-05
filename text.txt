@@ -1,0 +1,91 @@
+//socket.io
+
+const waitingQueue = []
+const rooms = []
+
+io.on("connection",(socket)=>{
+
+    console.log("user connected" , socket.id);
+
+    socket.on('waiting',(data)=>{
+        const isPresent = waitingQueue.some(item=>item.userId==data.userId)
+
+        const user = {
+            userId:data.userId,
+            socket
+        }
+
+        if(waitingQueue.length==0){
+            waitingQueue.push(user)
+        }
+        else if(!isPresent){
+            waitingQueue.push(user)
+        }
+        
+        if(waitingQueue.length===2){
+            processWaiting()
+        }
+    })
+
+    socket.on("sendMessage",(data)=>{
+        io.to(data.room).emit("reciveMessage",data)
+    })
+
+    socket.on("clientLeave",(data)=>{
+        const foundRoom = rooms.find(
+            item => item.user1 === socket.id || item.user2 === socket.id
+          );
+
+        if(foundRoom){
+            const roomIndex = rooms.findIndex(
+                item => item.user1 === socket.id || item.user2 === socket.id
+              );
+            rooms.splice(roomIndex,1)
+
+            socket.broadcast.to(foundRoom.room).emit("userLeft",{})
+        }
+    })
+    
+
+    socket.on("disconnect",()=>{
+        const foundRoom = rooms.find(
+            item => item.user1 === socket.id || item.user2 === socket.id
+          );
+
+        if(foundRoom){
+            const roomIndex = rooms.findIndex(
+                item => item.user1 === socket.id || item.user2 === socket.id
+              );
+            rooms.splice(roomIndex,1)
+
+            io.to(foundRoom.room).emit("userLeft",{})
+        }
+
+        const waitingIndex = waitingQueue.findIndex(
+            item => item.socket === socket
+        )
+        waitingQueue.splice(waitingIndex,1)
+    })
+
+    const processWaiting = ()=>{
+        if(waitingQueue.length>1){
+            const user1 = waitingQueue.shift()
+            const user2 = waitingQueue.shift()
+            const room = user1.userId;
+
+            user1.socket.join(room)
+            user2.socket.join(room)
+
+            io.to(room).emit("joinedRoom",{room})
+
+            const newRoom = {
+                user1 : user1.socket.id,
+                user2 : user2.socket.id,
+                room
+            }
+            rooms.push(newRoom)
+            
+            processWaiting()
+        }
+    }
+})
