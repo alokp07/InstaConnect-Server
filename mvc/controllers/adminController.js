@@ -1,29 +1,32 @@
 
 const admins = require('../modals/adminModel')
 const reports = require('../modals/userReportModel');
-const { updateOne } = require('../modals/userSchema');
 
 exports.bugReport = async(req,res)=>{
     const data = req.body;
     
     try {
 
-        const result = await admins.find({})
-        const newBug = result[0].bug
-        const user = result[0].user
-        const index = result[0].bug.length-1
-        if(result[0].bug.length>0){
-            data.id = result[0].bug[index].id + 1
-        }
-        newBug.push(data)
-        
-        const update = {
-            bug:newBug,
-            user
-        }
+        const result = await admins.findOne({})
 
-        await admins.updateOne({},update)
-        res.status(200).json(update)
+        if(result){
+            const newBug = result.bug;
+            newBug.push(data)
+            const update = {
+                bug:newBug
+            }
+
+            await admins.updateOne({},update)
+        }
+        else{
+            const newdata = new admins({
+                bug:[data]
+            })
+
+            newdata.save()
+        }
+        
+        res.status(200).json("ok")
         
     } catch (error) {
         console.log(error);
@@ -43,11 +46,12 @@ exports.getBugReport = async(req,res)=>{
 }
 
 exports.removeBug = async(req,res)=>{
-    const {id}= req.body;
+    const {index}= req.body;
 
     try {
         const result = await admins.findOne({})
-        const newBug = result.bug.filter(item=>item.id != id)
+        const newBug = result.bug
+        newBug.splice(index,1)
         const user = result.user
 
         const update = {
